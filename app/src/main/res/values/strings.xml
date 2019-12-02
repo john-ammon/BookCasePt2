@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">BookCase</string>
+    <string-array name="book_array">
+        <item>Harry Potter</item>
+        <item>To Kill a Mockingbird</item>
+        <item>The Catcher in the Rye</item>
+        <item>Of Mice and Men</item>
+        <item>The Hunger Games</item>
+        <item>War and Peace</item>
+        <item>Frankenstein</item>
+        <item>Odyssey</item>
+        <item>The Great Gatsby</item>
+        <item>Moby Dick</item>
+    </string-array>
+    <string name="button">Search</string>
+    <string name="play">Play</string>
+    <string name="playing">Now Playing</string>
+    <string name="pause">Pause</string>
+    <string name="stop">Stop</string>
+    <string name="nothing">Nothing Playing</string>
+</resources>

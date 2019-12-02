@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:id="@+id/search"
+        android:layout_width="match_parent"
+        android:layout_height="51dp"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/searchText"
+            android:layout_width="658dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ems="10"
+            android:inputType="textPersonName" />
+
+        <Button
+            android:id="@+id/searchButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/button" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/fragments"
+        android:layout_width="match_parent"
+        android:layout_height="591dp"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/listFragment"
+            android:layout_width="270dp"
+            android:layout_height="match_parent">
+
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="544dp">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/detailFragment"
+                android:layout_width="578dp"
+                android:layout_height="591dp">
+
+                <Button
+                    android:id="@+id/playButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="240dp"
+                    android:layout_marginBottom="184dp"
+                    android:text="@string/play"
+                    android:visibility="invisible"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <ImageView
+                android:id="@+id/imageView"
+                android:layout_width="0dp"
+                android:layout_height="591dp"
+                android:layout_weight="1"
+                app:srcCompat="@android:color/transparent" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#1D666666">
+
+        <TextView
+            android:id="@+id/nowPlayingText"
+            android:layout_width="114dp"
+            android:layout_height="29dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="10dp"
+            android:text="@string/playing"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/bookPlayingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:text="@string/nothing"
+            android:textSize="18sp"
+            app:layout_constraintBottom_toBottomOf="@+id/nowPlayingText"
+            app:layout_constraintStart_toEndOf="@+id/nowPlayingText"
+            app:layout_constraintTop_toTopOf="@+id/nowPlayingText" />
+
+        <SeekBar
+            android:id="@+id/seekBar"
+            android:layout_width="756dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="20dp"
+            app:layout_constraintStart_toStartOf="@+id/nowPlayingText"
+            app:layout_constraintTop_toBottomOf="@+id/nowPlayingText" />
+
+        <Button
+            android:id="@+id/stopButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="20dp"
+            android:text="@string/stop"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <Button
+            android:id="@+id/pauseButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="20dp"
+            android:text="@string/pause"
+            app:layout_constraintBottom_toBottomOf="@+id/stopButton"
+            app:layout_constraintEnd_toStartOf="@+id/stopButton"
+            app:layout_constraintTop_toTopOf="@+id/stopButton" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>
