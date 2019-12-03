@@ -1,19 +1,31 @@
 package edu.temple.bookcase;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.viewpager.widget.ViewPager;
 
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.SeekBar;
+import android.widget.TextView;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.BufferedReader;
@@ -21,6 +33,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
+
+import edu.temple.audiobookplayer.AudiobookService;
 
 public class MainActivity extends AppCompatActivity implements BookListFragment.OnFragmentInteractionListener {
 
@@ -33,6 +47,22 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     ArrayList<Book> books;
     Bundle bundle;
     String search = "";
+    AudiobookService.MediaControlBinder binder;
+    Boolean mBound;
+
+    private ServiceConnection connection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            binder = (AudiobookService.MediaControlBinder) service;
+            mBound = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mBound = false;
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,9 +118,109 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
             }
         }
 
+        final SeekBar seekBar = findViewById(R.id.seekBar);
+        Handler seekBarHandler = new Handler();
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if(binder != null && fromUser){
+                    binder.seekTo(progress);
+                }
+            }
+        });
+
+        //pause button
+        final Button pauseButton = findViewById(R.id.pauseButton);
+        pauseButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if(binder.isPlaying()) {
+                    binder.pause();
+                    pauseButton.setText("Resume");
+                } else {
+                    binder.pause();
+                    pauseButton.setText("Pause");
+                }
+            }
+        });
+
+        //play button
+        final Button playButton = findViewById(R.id.playButton);
+        playButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if(twoFragment) {
+                    BookDetailsFragment bookDF = (BookDetailsFragment) fragmentManager.findFragmentById(R.id.detailFragment);
+                    Bundle tempBundle = bookDF.getArguments();
+                    int id = tempBundle.getInt("bookID");
+                    String playingBookTitle = tempBundle.getString("bookTitle");
+                    int duration = tempBundle.getInt("bookDuration");
+
+                    binder.play(id);
+                    TextView bookPlaying = findViewById(R.id.bookPlayingText);
+                    bookPlaying.setText(playingBookTitle);
+                    seekBar.setMax(duration);
+                    pauseButton.setText("Pause");
+
+                    Handler progressHandler = new Handler(new Handler.Callback() {
+                        @Override
+                        public boolean handleMessage(@NonNull Message message) {
+                            if (message.obj!= null) {
+                                int newProgress = ((AudiobookService.BookProgress) message.obj).getProgress();
+                                seekBar.setProgress(newProgress);
+                            }
+                            return false; }
+                    });
+                    binder.setProgressHandler(progressHandler);
+                } else {
+                    ViewPager vp = findViewById(R.id.bookPager);
+                    int page = vp.getCurrentItem();
+                    Book current = books.get(page);
+                    binder.play(current.id);
+                    TextView bookPlaying = findViewById(R.id.bookPlayingText);
+                    bookPlaying.setText(current.title);
+                    seekBar.setMax(current.duration);
+                    pauseButton.setText("Pause");
+
+                    Handler progressHandler = new Handler(new Handler.Callback() {
+                        @Override
+                        public boolean handleMessage(@NonNull Message message) {
+                            if (message.obj!= null) {
+                                int newProgress = ((AudiobookService.BookProgress) message.obj).getProgress();
+                                seekBar.setProgress(newProgress);
+                            }
+                            return false; }
+                    });
+                    binder.setProgressHandler(progressHandler);
+                }
+            }
+        });
+
+        //stop button
+        final Button stopButton = findViewById(R.id.stopButton);
+        stopButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                binder.stop();
+                TextView bookPlaying = findViewById(R.id.bookPlayingText);
+                bookPlaying.setText("Nothing Playing");
+                pauseButton.setText("Pause");
+                seekBar.setProgress(0);
+            }
+        });
+
         //search button
-        final Button button = findViewById(R.id.searchButton);
-        button.setOnClickListener(new View.OnClickListener() {
+        final Button searchButton = findViewById(R.id.searchButton);
+        searchButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 EditText text = findViewById(R.id.searchText);
                 search = text.getText().toString();
@@ -108,16 +238,16 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
                     iv.setImageResource(android.R.color.transparent);
                 }
                 displayFragments();
+                if(twoFragment) { playButton.setVisibility(View.INVISIBLE); }
             }
         });
+    }
 
-        /*//play button
-        final Button playButton = findViewById(R.id.playButton);
-        playButton.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-
-            }
-        });*/
+    @Override
+    public void onStart() {
+        super.onStart();
+        Intent intent = new Intent(this, AudiobookService.class);
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
 
     @Override

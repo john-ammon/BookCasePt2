@@ -47,6 +47,11 @@ public class ViewPagerFragment extends Fragment {
         @Override
         public Fragment getItem(int position) {
             if(position < books.size()) {
+                Bundle bundle = getArguments();
+                bundle.putInt("bookID", books.get(position).id);
+                bundle.putString("bookTitle", books.get(position).title);
+                bundle.putInt("bookDuration", books.get(position).duration);
+                setArguments(bundle);
                 return BookDetailsFragment.newInstance(books.get(position));
             } else {
                 return null;
