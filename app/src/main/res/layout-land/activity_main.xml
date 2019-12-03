@@ -93,7 +93,8 @@
             android:textSize="18sp"
             app:layout_constraintBottom_toBottomOf="@+id/nowPlayingText"
             app:layout_constraintStart_toEndOf="@+id/nowPlayingText"
-            app:layout_constraintTop_toTopOf="@+id/nowPlayingText" />
+            app:layout_constraintTop_toTopOf="@+id/nowPlayingText"
+            android:freezesText="true"/>
 
         <SeekBar
             android:id="@+id/seekBar"
