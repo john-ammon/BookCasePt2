@@ -13,6 +13,7 @@
         <item>Moby Dick</item>
     </string-array>
     <string name="button">Search</string>
+    <string name="download">Download</string>
     <string name="play">Play</string>
     <string name="playing">Now Playing</string>
     <string name="pause">Pause</string>
