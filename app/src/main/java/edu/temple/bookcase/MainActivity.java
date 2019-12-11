@@ -6,17 +6,21 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
+import android.app.DownloadManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.PowerManager;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
@@ -25,14 +29,22 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import edu.temple.audiobookplayer.AudiobookService;
 
@@ -49,7 +61,9 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     String search = "";
     AudiobookService.MediaControlBinder binder;
     Boolean mBound;
+    HashMap<String, Integer> bookProgress;
 
+    //connect to AudiobookService
     private ServiceConnection connection = new ServiceConnection() {
 
         @Override
@@ -73,6 +87,12 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         fragmentManager = getSupportFragmentManager();
         twoFragment = (findViewById(R.id.detailFragment) != null);
         bundle = new Bundle();
+
+        if(savedInstanceState != null) {
+            bookProgress = (HashMap<String, Integer>) savedInstanceState.getSerializable("ProgressMap");
+        } else {
+            bookProgress = new HashMap<>();
+        }
 
         //determine orientation and display fragments
         if(fragmentManager.findFragmentById(R.id.listFragment) == null) {
@@ -118,9 +138,8 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
             }
         }
 
+        //seekBar
         final SeekBar seekBar = findViewById(R.id.seekBar);
-        Handler seekBarHandler = new Handler();
-
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 
             @Override
@@ -148,6 +167,25 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
                 if(binder.isPlaying()) {
                     binder.pause();
                     pauseButton.setText("Resume");
+
+                    //get title from bundle
+                    String title;
+                    if(twoFragment) {
+                        BookDetailsFragment bookDF = (BookDetailsFragment) fragmentManager.findFragmentById(R.id.detailFragment);
+                        Bundle tempBundle = bookDF.getArguments();
+                        title = tempBundle.getString("bookTitle");
+                    } else {
+                        ViewPager vp = findViewById(R.id.bookPager);
+                        int page = vp.getCurrentItem();
+                        Book current = books.get(page);
+                        title = current.title;
+                    }
+
+                    //save and display progress
+                    SeekBar seekBar = findViewById(R.id.seekBar);
+                    int progress = seekBar.getProgress();
+                    bookProgress.put(title, progress);
+                    Toast.makeText(MainActivity.this, "Progress saved", Toast.LENGTH_SHORT).show();
                 } else {
                     binder.pause();
                     pauseButton.setText("Pause");
@@ -159,50 +197,60 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         final Button playButton = findViewById(R.id.playButton);
         playButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                //book info
+                int id, duration;
+                String playingBookTitle;
+                //set book info from pager or detail fragment
                 if(twoFragment) {
                     BookDetailsFragment bookDF = (BookDetailsFragment) fragmentManager.findFragmentById(R.id.detailFragment);
                     Bundle tempBundle = bookDF.getArguments();
-                    int id = tempBundle.getInt("bookID");
-                    String playingBookTitle = tempBundle.getString("bookTitle");
-                    int duration = tempBundle.getInt("bookDuration");
 
-                    binder.play(id);
-                    TextView bookPlaying = findViewById(R.id.bookPlayingText);
-                    bookPlaying.setText(playingBookTitle);
-                    seekBar.setMax(duration);
-                    pauseButton.setText("Pause");
-
-                    Handler progressHandler = new Handler(new Handler.Callback() {
-                        @Override
-                        public boolean handleMessage(@NonNull Message message) {
-                            if (message.obj!= null) {
-                                int newProgress = ((AudiobookService.BookProgress) message.obj).getProgress();
-                                seekBar.setProgress(newProgress);
-                            }
-                            return false; }
-                    });
-                    binder.setProgressHandler(progressHandler);
+                    id = tempBundle.getInt("bookID");
+                    playingBookTitle = tempBundle.getString("bookTitle");
+                    duration = tempBundle.getInt("bookDuration");
                 } else {
                     ViewPager vp = findViewById(R.id.bookPager);
                     int page = vp.getCurrentItem();
                     Book current = books.get(page);
-                    binder.play(current.id);
-                    TextView bookPlaying = findViewById(R.id.bookPlayingText);
-                    bookPlaying.setText(current.title);
-                    seekBar.setMax(current.duration);
-                    pauseButton.setText("Pause");
 
-                    Handler progressHandler = new Handler(new Handler.Callback() {
-                        @Override
-                        public boolean handleMessage(@NonNull Message message) {
-                            if (message.obj!= null) {
-                                int newProgress = ((AudiobookService.BookProgress) message.obj).getProgress();
-                                seekBar.setProgress(newProgress);
-                            }
-                            return false; }
-                    });
-                    binder.setProgressHandler(progressHandler);
+                    id = current.id;
+                    duration = current.duration;
+                    playingBookTitle = current.title;
                 }
+
+                //save progress if other book was already playing
+                TextView textView = findViewById(R.id.bookPlayingText);
+                String previouslyPlaying = textView.getText().toString();
+                if(seekBar.getProgress() > 0 && !(previouslyPlaying.equals(playingBookTitle))) {
+                    int progress = seekBar.getProgress();
+                    bookProgress.put(previouslyPlaying, progress);
+                    Toast.makeText(MainActivity.this, "Progress saved", Toast.LENGTH_SHORT).show();
+                }
+
+                //play book
+                if(bookProgress.containsKey(playingBookTitle)) {
+                    int progress = bookProgress.get(playingBookTitle);
+                    binder.play(id, progress);
+                } else {
+                    binder.play(id);
+                }
+                TextView bookPlaying = findViewById(R.id.bookPlayingText);
+                bookPlaying.setText(playingBookTitle);
+                seekBar.setMax(duration);
+                pauseButton.setText("Pause");
+
+
+                //set handler for seekBar
+                Handler progressHandler = new Handler(new Handler.Callback() {
+                    @Override
+                    public boolean handleMessage(@NonNull Message message) {
+                        if (message.obj!= null) {
+                            int newProgress = ((AudiobookService.BookProgress) message.obj).getProgress();
+                            seekBar.setProgress(newProgress);
+                        }
+                        return false; }
+                });
+                binder.setProgressHandler(progressHandler);
             }
         });
 
@@ -212,9 +260,15 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
             public void onClick(View v) {
                 binder.stop();
                 TextView bookPlaying = findViewById(R.id.bookPlayingText);
+                String wasPlaying = bookPlaying.getText().toString();
                 bookPlaying.setText("Nothing Playing");
                 pauseButton.setText("Pause");
                 seekBar.setProgress(0);
+
+                if(bookProgress.containsKey(wasPlaying)) {
+                    bookProgress.put(wasPlaying, 0);
+                    Toast.makeText(MainActivity.this, "Progress reset", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -241,6 +295,13 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
                 if(twoFragment) { playButton.setVisibility(View.INVISIBLE); }
             }
         });
+
+        //download button
+        final Button downloadButton = findViewById(R.id.downloadButton);
+        downloadButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {}
+        });
     }
 
     @Override
@@ -257,7 +318,9 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         new getCoverImage((ImageView) findViewById(R.id.imageView))
                 .execute(books.get(position).coverURL);
         Button playButton = findViewById(R.id.playButton);
+        Button downloadButton = findViewById(R.id.downloadButton);
         playButton.setVisibility(View.VISIBLE);
+        downloadButton.setVisibility(View.VISIBLE);
     }
 
     public void displayFragments() {
@@ -354,4 +417,24 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
             imageView.setImageBitmap(result);
         }
     }
+
+    //save book progress
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+        savedInstanceState.putSerializable("ProgressMap", bookProgress);
+    }
+
+    //load book progress
+    @Override
+    public void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        // Restore UI state from the savedInstanceState.
+        // This bundle has also been passed to onCreate.
+        boolean myBoolean = savedInstanceState.getBoolean("MyBoolean");
+        double myDouble = savedInstanceState.getDouble("myDouble");
+        int myInt = savedInstanceState.getInt("MyInt");
+        String myString = savedInstanceState.getString("MyString");
+    }
+
 }

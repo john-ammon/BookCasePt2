@@ -65,6 +65,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
                 android:text="@string/download"
+                android:visibility="invisible"
                 app:layout_constraintBottom_toBottomOf="@+id/playButton"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="@+id/playButton"
